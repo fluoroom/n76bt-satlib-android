@@ -1,0 +1,24 @@
+# Decoded APK reference (not part of source)
+decodedapp/
+
+# Gradle
+.gradle/
+build/
+app/build/
+
+# Local config (contains SDK path, never commit)
+local.properties
+
+# Android Studio / IntelliJ
+*.iml
+.idea/
+*.ipr
+*.iws
+
+# Keystore (keep out of VCS)
+*.jks
+*.keystore
+
+# OS
+.DS_Store
+Thumbs.db
