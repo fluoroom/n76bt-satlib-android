@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">N76 BT Link</string>
+    <string name="label_bt_device">Bluetooth Device</string>
+    <string name="label_satlib_connection">satlib Connection</string>
+    <string name="label_host">Host / IP</string>
+    <string name="label_port">Port</string>
+    <string name="label_poll_interval">Poll Interval</string>
+    <string name="label_radio_options">Radio Options</string>
+    <string name="label_sat_fw">Satellite firmware (fw ≥ 137, mode = SATELLITE)</string>
+    <string name="label_sat_info">Send satellite info frame (fw ≥ 141)</string>
+    <string name="label_force_rx_null">Force RX CTCSS tone = none (ignore satlib value)</string>
+    <string name="label_force_tx_null">Force TX CTCSS tone = none (ignore satlib value)</string>
+    <string name="btn_start">Start</string>
+    <string name="btn_stop">Stop</string>
+</resources>
