@@ -9,6 +9,8 @@
         android:layout_height="wrap_content"
         android:orientation="vertical">
 
+        <!-- ── Bluetooth ─────────────────────────────── -->
+
         <TextView
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
@@ -20,66 +22,44 @@
             android:id="@+id/spinnerDevices"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:layout_marginBottom="16dp" />
+            android:layout_marginBottom="20dp" />
+
+        <!-- ── satlib connection ──────────────────────── -->
 
         <TextView
             android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:layout_marginBottom="4dp"
-            android:text="@string/label_sat_name" />
-
-        <EditText
-            android:id="@+id/editSatName"
-            android:layout_width="match_parent"
             android:layout_height="wrap_content"
             android:layout_marginBottom="8dp"
-            android:hint="SAT"
-            android:inputType="text"
-            android:maxLines="1"
-            android:text="ISS" />
-
-        <TextView
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:layout_marginBottom="4dp"
-            android:text="@string/label_altitude" />
-
-        <EditText
-            android:id="@+id/editAltitude"
-            android:layout_width="match_parent"
-            android:layout_height="wrap_content"
-            android:layout_marginBottom="16dp"
-            android:hint="400"
-            android:inputType="number"
-            android:maxLines="1"
-            android:text="400" />
+            android:text="@string/label_satlib_connection"
+            android:textStyle="bold" />
 
         <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:layout_marginBottom="16dp"
+            android:layout_marginBottom="8dp"
             android:orientation="horizontal">
 
             <LinearLayout
                 android:layout_width="0dp"
                 android:layout_height="wrap_content"
                 android:layout_marginEnd="8dp"
-                android:layout_weight="1"
+                android:layout_weight="3"
                 android:orientation="vertical">
 
                 <TextView
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:layout_marginBottom="4dp"
-                    android:text="@string/label_rx_subtone" />
+                    android:text="@string/label_host" />
 
                 <EditText
-                    android:id="@+id/editRxSubtone"
+                    android:id="@+id/editHost"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:hint="0"
-                    android:inputType="numberDecimal"
-                    android:text="0" />
+                    android:hint="192.168.1.1"
+                    android:inputType="textNoSuggestions"
+                    android:maxLines="1"
+                    android:text="192.168.1.1" />
             </LinearLayout>
 
             <LinearLayout
@@ -92,17 +72,39 @@
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:layout_marginBottom="4dp"
-                    android:text="@string/label_tx_subtone" />
+                    android:text="@string/label_port" />
 
                 <EditText
-                    android:id="@+id/editTxSubtone"
+                    android:id="@+id/editPort"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:hint="0"
-                    android:inputType="numberDecimal"
-                    android:text="0" />
+                    android:hint="4534"
+                    android:inputType="number"
+                    android:maxLines="1"
+                    android:text="4534" />
             </LinearLayout>
         </LinearLayout>
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginBottom="4dp"
+            android:text="@string/label_poll_interval" />
+
+        <Spinner
+            android:id="@+id/spinnerInterval"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginBottom="20dp" />
+
+        <!-- ── Radio options ──────────────────────────── -->
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginBottom="8dp"
+            android:text="@string/label_radio_options"
+            android:textStyle="bold" />
 
         <CheckBox
             android:id="@+id/checkSatFw"
@@ -116,8 +118,24 @@
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:checked="true"
-            android:layout_marginBottom="20dp"
             android:text="@string/label_sat_info" />
+
+        <CheckBox
+            android:id="@+id/checkForceRxNull"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:checked="false"
+            android:text="@string/label_force_rx_null" />
+
+        <CheckBox
+            android:id="@+id/checkForceTxNull"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:checked="false"
+            android:layout_marginBottom="20dp"
+            android:text="@string/label_force_tx_null" />
+
+        <!-- ── Control ────────────────────────────────── -->
 
         <Button
             android:id="@+id/btnToggle"

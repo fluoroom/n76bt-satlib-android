@@ -17,25 +17,26 @@ import androidx.core.content.ContextCompat
 
 class MainActivity : AppCompatActivity() {
 
-    private lateinit var spinnerDevices: Spinner
-    private lateinit var editSatName: EditText
-    private lateinit var editAltitude: EditText
-    private lateinit var editRxSubtone: EditText
-    private lateinit var editTxSubtone: EditText
-    private lateinit var checkSatFw: CheckBox
-    private lateinit var checkSatInfo: CheckBox
-    private lateinit var btnToggle: Button
-    private lateinit var tvLog: TextView
+    private lateinit var spinnerDevices:  Spinner
+    private lateinit var editHost:        EditText
+    private lateinit var editPort:        EditText
+    private lateinit var spinnerInterval: Spinner
+    private lateinit var checkSatFw:      CheckBox
+    private lateinit var checkSatInfo:    CheckBox
+    private lateinit var checkForceRxNull: CheckBox
+    private lateinit var checkForceTxNull: CheckBox
+    private lateinit var btnToggle:       Button
+    private lateinit var tvLog:           TextView
 
     private var pairedDevices: List<BluetoothDevice> = emptyList()
     private var serviceRunning = false
 
+    private val pollStepsMs = (1..12).map { it * 250L }
+
     private val logReceiver = object : BroadcastReceiver() {
         override fun onReceive(context: Context, intent: Intent) {
             val msg = intent.getStringExtra(BridgeService.EXTRA_LOG_MSG) ?: return
-            runOnUiThread {
-                tvLog.append("$msg\n")
-            }
+            runOnUiThread { tvLog.append("$msg\n") }
         }
     }
 
@@ -43,15 +44,23 @@ class MainActivity : AppCompatActivity() {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_main)
 
-        spinnerDevices = findViewById(R.id.spinnerDevices)
-        editSatName    = findViewById(R.id.editSatName)
-        editAltitude   = findViewById(R.id.editAltitude)
-        editRxSubtone  = findViewById(R.id.editRxSubtone)
-        editTxSubtone  = findViewById(R.id.editTxSubtone)
-        checkSatFw     = findViewById(R.id.checkSatFw)
-        checkSatInfo   = findViewById(R.id.checkSatInfo)
-        btnToggle      = findViewById(R.id.btnToggle)
-        tvLog          = findViewById(R.id.tvLog)
+        spinnerDevices   = findViewById(R.id.spinnerDevices)
+        editHost         = findViewById(R.id.editHost)
+        editPort         = findViewById(R.id.editPort)
+        spinnerInterval  = findViewById(R.id.spinnerInterval)
+        checkSatFw       = findViewById(R.id.checkSatFw)
+        checkSatInfo     = findViewById(R.id.checkSatInfo)
+        checkForceRxNull = findViewById(R.id.checkForceRxNull)
+        checkForceTxNull = findViewById(R.id.checkForceTxNull)
+        btnToggle        = findViewById(R.id.btnToggle)
+        tvLog            = findViewById(R.id.tvLog)
+
+        spinnerInterval.adapter = ArrayAdapter(
+            this,
+            android.R.layout.simple_spinner_item,
+            pollStepsMs.map { "${it} ms" }
+        ).also { it.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item) }
+        spinnerInterval.setSelection(3) // default 1000 ms
 
         requestPermissions()
         loadPairedDevices()
@@ -63,7 +72,10 @@ class MainActivity : AppCompatActivity() {
 
     override fun onResume() {
         super.onResume()
-        ContextCompat.registerReceiver(this, logReceiver, IntentFilter(BridgeService.ACTION_LOG), ContextCompat.RECEIVER_NOT_EXPORTED)
+        ContextCompat.registerReceiver(
+            this, logReceiver, IntentFilter(BridgeService.ACTION_LOG),
+            ContextCompat.RECEIVER_NOT_EXPORTED
+        )
     }
 
     override fun onPause() {
@@ -83,43 +95,37 @@ class MainActivity : AppCompatActivity() {
             toast("No paired devices — pair the N76 first")
             return
         }
-        val names = pairedDevices.map { "${it.name}  (${it.address})" }
-        spinnerDevices.adapter =
-            ArrayAdapter(this, android.R.layout.simple_spinner_item, names).also {
-                it.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item)
-            }
-        // Pre-select the first N76-looking device if any
+        spinnerDevices.adapter = ArrayAdapter(
+            this,
+            android.R.layout.simple_spinner_item,
+            pairedDevices.map { "${it.name}  (${it.address})" }
+        ).also { it.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item) }
         val n76idx = pairedDevices.indexOfFirst { it.name?.contains("N76", ignoreCase = true) == true }
         if (n76idx >= 0) spinnerDevices.setSelection(n76idx)
     }
 
     private fun startBridge() {
         val idx = spinnerDevices.selectedItemPosition
-        if (idx < 0 || idx >= pairedDevices.size) {
-            toast("Select a Bluetooth device")
-            return
-        }
-        val mac     = pairedDevices[idx].address
-        val satName = editSatName.text.toString().trim().ifBlank { "SAT" }
-        val altitude = editAltitude.text.toString().trim().toIntOrNull() ?: 400
-        val rxSub   = parseSubtone(editRxSubtone.text.toString())
-        val txSub   = parseSubtone(editTxSubtone.text.toString())
+        if (idx < 0 || idx >= pairedDevices.size) { toast("Select a Bluetooth device"); return }
+
+        val host    = editHost.text.toString().trim().ifBlank { "192.168.1.1" }
+        val port    = editPort.text.toString().trim().toIntOrNull() ?: 4534
+        val pollMs  = pollStepsMs.getOrElse(spinnerInterval.selectedItemPosition) { 1000L }
 
         val svcIntent = Intent(this, BridgeService::class.java).apply {
             action = BridgeService.ACTION_START
-            putExtra(BridgeService.EXTRA_MAC, mac)
-            putExtra(BridgeService.EXTRA_SAT_NAME, satName)
-            putExtra(BridgeService.EXTRA_ALTITUDE, altitude)
-            putExtra(BridgeService.EXTRA_RX_SUBTONE, rxSub)
-            putExtra(BridgeService.EXTRA_TX_SUBTONE, txSub)
-            putExtra(BridgeService.EXTRA_SAT_FW, checkSatFw.isChecked)
+            putExtra(BridgeService.EXTRA_MAC,           pairedDevices[idx].address)
+            putExtra(BridgeService.EXTRA_HOST,          host)
+            putExtra(BridgeService.EXTRA_PORT,          port)
+            putExtra(BridgeService.EXTRA_POLL_MS,       pollMs)
+            putExtra(BridgeService.EXTRA_SAT_FW,        checkSatFw.isChecked)
             putExtra(BridgeService.EXTRA_SEND_SAT_INFO, checkSatInfo.isChecked)
+            putExtra(BridgeService.EXTRA_FORCE_RX_NULL, checkForceRxNull.isChecked)
+            putExtra(BridgeService.EXTRA_FORCE_TX_NULL, checkForceTxNull.isChecked)
         }
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
-            startForegroundService(svcIntent)
-        } else {
-            startService(svcIntent)
-        }
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) startForegroundService(svcIntent)
+        else startService(svcIntent)
+
         serviceRunning = true
         btnToggle.text = getString(R.string.btn_stop)
         tvLog.append("Starting bridge…\n")
@@ -156,22 +162,9 @@ class MainActivity : AppCompatActivity() {
 
     private fun hasBluetoothPermission(): Boolean =
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S)
-            ActivityCompat.checkSelfPermission(
-                this, Manifest.permission.BLUETOOTH_CONNECT
-            ) == PackageManager.PERMISSION_GRANTED
+            ActivityCompat.checkSelfPermission(this, Manifest.permission.BLUETOOTH_CONNECT) ==
+                    PackageManager.PERMISSION_GRANTED
         else true
 
     private fun toast(msg: String) = Toast.makeText(this, msg, Toast.LENGTH_SHORT).show()
-
-    // N76 subtone encoding: CTCSS stored as Hz×100 (67.0 Hz → 6700),
-    // DCS codes stored as raw integers < 1000 (DCS 023 → 23), 0 = none.
-    // Inputs >= 50.0 are treated as CTCSS Hz and multiplied by 100.
-    private fun parseSubtone(text: String): Int {
-        val v = text.trim().toDoubleOrNull() ?: return 0
-        return when {
-            v <= 0.0  -> 0
-            v >= 50.0 -> (v * 100).toInt()
-            else      -> v.toInt()
-        }
-    }
 }

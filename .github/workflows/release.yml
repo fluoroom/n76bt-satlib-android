@@ -1,14 +1,16 @@
 name: Release
 
 on:
-  release:
-    types: [created]
+  push:
+    tags:
+      - 'v*'
+
+permissions:
+  contents: write
 
 jobs:
   build:
     runs-on: ubuntu-latest
-    permissions:
-      contents: write   # required to upload assets to the release
 
     steps:
       - uses: actions/checkout@v4
@@ -17,13 +19,13 @@ jobs:
         with:
           java-version: '17'
           distribution: 'temurin'
+          cache: gradle
 
-      - uses: gradle/actions/setup-gradle@v3
-        with:
-          gradle-version: '8.4'
+      - name: Make gradlew executable
+        run: chmod +x ./gradlew
 
       - name: Decode keystore
-        run: echo "${{ secrets.KEYSTORE_BASE64 }}" | base64 --decode > keystore.jks
+        run: echo "${{ secrets.KEYSTORE_BASE64 }}" | base64 -d > keystore.jks
 
       - name: Build release APK
         env:
@@ -31,9 +33,15 @@ jobs:
           STORE_PASSWORD: ${{ secrets.STORE_PASSWORD }}
           KEY_ALIAS: ${{ secrets.KEY_ALIAS }}
           KEY_PASSWORD: ${{ secrets.KEY_PASSWORD }}
-        run: gradle :app:assembleRelease
+        run: ./gradlew assembleRelease
 
-      - name: Upload APK to release
+      - name: Rename APK with version tag
+        run: |
+          mv app/build/outputs/apk/release/app-release.apk \
+             app/build/outputs/apk/release/n76btlink-${{ github.ref_name }}.apk
+
+      - name: Create GitHub Release
         uses: softprops/action-gh-release@v2
         with:
-          files: app/build/outputs/apk/release/app-release.apk
+          files: app/build/outputs/apk/release/n76btlink-${{ github.ref_name }}.apk
+          generate_release_notes: true
