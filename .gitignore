@@ -5,6 +5,7 @@ decodedapp/
 .gradle/
 build/
 app/build/
+app/bin/
 
 # Local config (contains SDK path, never commit)
 local.properties
