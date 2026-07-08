@@ -108,7 +108,7 @@ class MainActivity : AppCompatActivity() {
         val idx = spinnerDevices.selectedItemPosition
         if (idx < 0 || idx >= pairedDevices.size) { toast("Select a Bluetooth device"); return }
 
-        val host    = editHost.text.toString().trim().ifBlank { "192.168.1.1" }
+        val host    = editHost.text.toString().trim().ifBlank { "127.0.0.1" }
         val port    = editPort.text.toString().trim().toIntOrNull() ?: 4534
         val pollMs  = pollStepsMs.getOrElse(spinnerInterval.selectedItemPosition) { 1000L }
 

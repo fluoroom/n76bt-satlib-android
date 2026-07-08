@@ -37,7 +37,7 @@ class BridgeService : Service() {
         when (intent?.action) {
             ACTION_START -> {
                 val mac  = intent.getStringExtra(EXTRA_MAC) ?: return START_NOT_STICKY
-                val host = intent.getStringExtra(EXTRA_HOST) ?: "192.168.1.1"
+                val host = intent.getStringExtra(EXTRA_HOST) ?: "127.0.0.1"
                 val port = intent.getIntExtra(EXTRA_PORT, 4534)
                 pollIntervalMs  = intent.getLongExtra(EXTRA_POLL_MS, 1000L)
                 satFirmware     = intent.getBooleanExtra(EXTRA_SAT_FW, true)
@@ -82,27 +82,25 @@ class BridgeService : Service() {
             client.poll()
         } catch (e: Exception) {
             broadcastLog("satlib error: ${e.message}")
-            // Keep the radio in satellite mode even when the server is unreachable
             bt.send(N76Protocol.freqModePacket(0L, 0L, 0, 0, satFirmware))
             return
         }
 
-        // Always send the freq packet — this is what keeps the radio in SATELLITE screen mode.
-        // Use 0 Hz when idle or when satlib has no frequency data yet.
+        if (data.isIdle) {
+            // No satellite tracked: keep the radio in satellite screen mode with zeroed freqs
+            bt.send(N76Protocol.freqModePacket(0L, 0L, 0, 0, satFirmware))
+            broadcastLog("satlib: idle")
+            return
+        }
+
         val rxHz = data.rxFrequencyHz ?: 0L
         val txHz = data.txFrequencyHz ?: 0L
         val rxSub = if (forceRxToneNull) 0 else ctcssToSubtone(data.ctcssRxToneHz)
         val txSub = if (forceTxToneNull) 0 else ctcssToSubtone(data.ctcssTxToneHz)
 
-        bt.send(N76Protocol.freqModePacket(rxHz, txHz, rxSub, txSub, satFirmware))
-
-        if (data.isIdle) {
-            broadcastLog("satlib: idle")
-            return
-        }
-
         broadcastLog("rx=${rxHz/1_000_000.0}MHz tx=${txHz/1_000_000.0}MHz rxTone=$rxSub txTone=$txSub")
 
+        // Original app order: SET_SATELLITE_INFO first, then FREQ_MODE_SET_PAR
         if (sendSatInfo) {
             val nowMs = System.currentTimeMillis()
             val aosSec = if (data.aosTime > 0)
@@ -117,6 +115,8 @@ class BridgeService : Service() {
                 aos  = aosSec
             ))
         }
+
+        bt.send(N76Protocol.freqModePacket(rxHz, txHz, rxSub, txSub, satFirmware))
     }
 
     private fun ctcssToSubtone(hz: Float?): Int {
