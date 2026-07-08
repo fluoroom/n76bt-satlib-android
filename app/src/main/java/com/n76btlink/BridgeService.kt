@@ -29,6 +29,7 @@ class BridgeService : Service() {
     private var timer: Timer? = null
 
     private var satName = "SAT"
+    private var altitudeKm = 400
     private var rxSubtone = 0
     private var txSubtone = 0
     private var satFirmware = true
@@ -48,6 +49,7 @@ class BridgeService : Service() {
             ACTION_START -> {
                 val mac = intent.getStringExtra(EXTRA_MAC) ?: return START_NOT_STICKY
                 satName     = intent.getStringExtra(EXTRA_SAT_NAME) ?: "SAT"
+                altitudeKm  = intent.getIntExtra(EXTRA_ALTITUDE, 400)
                 rxSubtone   = intent.getIntExtra(EXTRA_RX_SUBTONE, 0)
                 txSubtone   = intent.getIntExtra(EXTRA_TX_SUBTONE, 0)
                 satFirmware = intent.getBooleanExtra(EXTRA_SAT_FW, true)
@@ -91,7 +93,12 @@ class BridgeService : Service() {
         val tx = rigctld.txFreqHz.get()
         bt.send(N76Protocol.freqModePacket(rx, tx, rxSubtone, txSubtone, satFirmware))
         if (sendSatInfo) {
-            bt.send(N76Protocol.satInfoPacket(satName, 0, 0, 0, 400, 65535))
+            bt.send(N76Protocol.satInfoPacket(
+                satName,
+                rigctld.azimuthDeg.get(),
+                rigctld.elevationDeg.get(),
+                0, altitudeKm, 65535
+            ))
         }
     }
 
@@ -135,6 +142,7 @@ class BridgeService : Service() {
         const val ACTION_LOG            = "com.n76btlink.LOG"
         const val EXTRA_MAC             = "mac"
         const val EXTRA_SAT_NAME        = "sat_name"
+        const val EXTRA_ALTITUDE        = "altitude"
         const val EXTRA_RX_SUBTONE      = "rx_sub"
         const val EXTRA_TX_SUBTONE      = "tx_sub"
         const val EXTRA_SAT_FW          = "sat_fw"

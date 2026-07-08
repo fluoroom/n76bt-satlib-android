@@ -13,11 +13,13 @@ import android.os.Bundle
 import android.widget.*
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.app.ActivityCompat
+import androidx.core.content.ContextCompat
 
 class MainActivity : AppCompatActivity() {
 
     private lateinit var spinnerDevices: Spinner
     private lateinit var editSatName: EditText
+    private lateinit var editAltitude: EditText
     private lateinit var editRxSubtone: EditText
     private lateinit var editTxSubtone: EditText
     private lateinit var checkSatFw: CheckBox
@@ -43,6 +45,7 @@ class MainActivity : AppCompatActivity() {
 
         spinnerDevices = findViewById(R.id.spinnerDevices)
         editSatName    = findViewById(R.id.editSatName)
+        editAltitude   = findViewById(R.id.editAltitude)
         editRxSubtone  = findViewById(R.id.editRxSubtone)
         editTxSubtone  = findViewById(R.id.editTxSubtone)
         checkSatFw     = findViewById(R.id.checkSatFw)
@@ -60,7 +63,7 @@ class MainActivity : AppCompatActivity() {
 
     override fun onResume() {
         super.onResume()
-        registerReceiver(logReceiver, IntentFilter(BridgeService.ACTION_LOG))
+        ContextCompat.registerReceiver(this, logReceiver, IntentFilter(BridgeService.ACTION_LOG), ContextCompat.RECEIVER_NOT_EXPORTED)
     }
 
     override fun onPause() {
@@ -98,13 +101,15 @@ class MainActivity : AppCompatActivity() {
         }
         val mac     = pairedDevices[idx].address
         val satName = editSatName.text.toString().trim().ifBlank { "SAT" }
-        val rxSub   = editRxSubtone.text.toString().trim().toIntOrNull() ?: 0
-        val txSub   = editTxSubtone.text.toString().trim().toIntOrNull() ?: 0
+        val altitude = editAltitude.text.toString().trim().toIntOrNull() ?: 400
+        val rxSub   = parseSubtone(editRxSubtone.text.toString())
+        val txSub   = parseSubtone(editTxSubtone.text.toString())
 
         val svcIntent = Intent(this, BridgeService::class.java).apply {
             action = BridgeService.ACTION_START
             putExtra(BridgeService.EXTRA_MAC, mac)
             putExtra(BridgeService.EXTRA_SAT_NAME, satName)
+            putExtra(BridgeService.EXTRA_ALTITUDE, altitude)
             putExtra(BridgeService.EXTRA_RX_SUBTONE, rxSub)
             putExtra(BridgeService.EXTRA_TX_SUBTONE, txSub)
             putExtra(BridgeService.EXTRA_SAT_FW, checkSatFw.isChecked)
@@ -157,4 +162,16 @@ class MainActivity : AppCompatActivity() {
         else true
 
     private fun toast(msg: String) = Toast.makeText(this, msg, Toast.LENGTH_SHORT).show()
+
+    // N76 subtone encoding: CTCSS stored as Hz×100 (67.0 Hz → 6700),
+    // DCS codes stored as raw integers < 1000 (DCS 023 → 23), 0 = none.
+    // Inputs >= 50.0 are treated as CTCSS Hz and multiplied by 100.
+    private fun parseSubtone(text: String): Int {
+        val v = text.trim().toDoubleOrNull() ?: return 0
+        return when {
+            v <= 0.0  -> 0
+            v >= 50.0 -> (v * 100).toInt()
+            else      -> v.toInt()
+        }
+    }
 }

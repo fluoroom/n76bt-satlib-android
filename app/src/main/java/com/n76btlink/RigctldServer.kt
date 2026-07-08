@@ -6,6 +6,7 @@ import java.io.PrintWriter
 import java.net.ServerSocket
 import java.net.Socket
 import java.util.concurrent.atomic.AtomicBoolean
+import java.util.concurrent.atomic.AtomicInteger
 import java.util.concurrent.atomic.AtomicLong
 import kotlin.concurrent.thread
 
@@ -23,8 +24,10 @@ import kotlin.concurrent.thread
  */
 class RigctldServer(private val port: Int = 4532) {
 
-    val rxFreqHz = AtomicLong(145_800_000L)
-    val txFreqHz = AtomicLong(145_800_000L)
+    val rxFreqHz    = AtomicLong(145_800_000L)
+    val txFreqHz    = AtomicLong(145_800_000L)
+    val azimuthDeg  = AtomicInteger(0)
+    val elevationDeg = AtomicInteger(0)
 
     private val running = AtomicBoolean(false)
     private var serverSocket: ServerSocket? = null
@@ -65,6 +68,7 @@ class RigctldServer(private val port: Int = 4532) {
                 while (reader.readLine().also { line = it } != null) {
                     val cmd = line!!.trim()
                     if (cmd.isEmpty()) continue
+                    onLog?.invoke("cmd: $cmd")
                     when {
                         cmd == "q" || cmd == "\\quit" -> {
                             break
@@ -87,6 +91,17 @@ class RigctldServer(private val port: Int = 4532) {
                         }
                         cmd == "i" || cmd == "\\get_split_freq" -> {
                             writer.print("${txFreqHz.get()}\nRPRT 0\n")
+                            writer.flush()
+                        }
+                        cmd.startsWith("P ") || cmd.startsWith("\\set_pos ") -> {
+                            val parts = cmd.substringAfter(' ').trim().split(Regex("\\s+"))
+                            parts.getOrNull(0)?.toDoubleOrNull()?.toInt()?.let { azimuthDeg.set(it) }
+                            parts.getOrNull(1)?.toDoubleOrNull()?.toInt()?.let { elevationDeg.set(it) }
+                            writer.print("RPRT 0\n")
+                            writer.flush()
+                        }
+                        cmd == "p" || cmd == "\\get_pos" -> {
+                            writer.print("${azimuthDeg.get()}\n${elevationDeg.get()}\nRPRT 0\n")
                             writer.flush()
                         }
                         cmd.startsWith("dump_caps") || cmd.startsWith("\\dump_caps") -> {
