@@ -19,7 +19,8 @@ data class SatlibData(
     val aboveHorizon: Boolean,
     val aosTime: Long,
     val losTime: Long,
-    val timestamp: Long
+    val timestamp: Long,
+    val rawJson: String = ""
 ) {
     val isIdle: Boolean get() = satName.isEmpty() || timestamp == 0L
 }
@@ -33,7 +34,8 @@ class SatlibClient(val host: String, val port: Int) {
         conn.requestMethod  = "GET"
         return try {
             conn.connect()
-            val j = JSONObject(conn.inputStream.bufferedReader().readText())
+            val raw = conn.inputStream.bufferedReader().readText()
+            val j = JSONObject(raw)
             SatlibData(
                 satName       = j.optString("satName", ""),
                 catNum        = j.optInt("catNum", 0),
@@ -49,7 +51,8 @@ class SatlibClient(val host: String, val port: Int) {
                 aboveHorizon  = j.optBoolean("aboveHorizon", false),
                 aosTime       = j.optLong("aosTime", 0L),
                 losTime       = j.optLong("losTime", 0L),
-                timestamp     = j.optLong("timestamp", 0L)
+                timestamp     = j.optLong("timestamp", 0L),
+                rawJson       = raw
             )
         } finally {
             conn.disconnect()

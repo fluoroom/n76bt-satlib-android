@@ -115,6 +115,9 @@ object N76Protocol {
 
     fun satInfoPacket(name: String, az: Int, el: Int, dist: Int, alt: Int, aos: Int) =
         buildPacket(CMD_SET_SATELLITE_INFO, buildSatelliteInfo(name, az, el, dist, alt, aos))
+
+    // mode=OFF (0) = all zero bits; tells the radio to exit satellite/freq-override mode
+    fun exitSatModePacket() = buildPacket(CMD_FREQ_MODE_SET_PAR, ByteArray(14))
 }
 
 /**

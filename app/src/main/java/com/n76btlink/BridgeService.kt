@@ -7,11 +7,14 @@ import android.app.Service
 import android.content.Intent
 import android.os.Build
 import android.os.IBinder
+import android.util.Log
 import androidx.core.app.NotificationCompat
 import java.util.concurrent.Executors
 import java.util.concurrent.ScheduledExecutorService
 import java.util.concurrent.TimeUnit
 import kotlin.math.roundToInt
+
+private const val TAG = "N76BT"
 
 class BridgeService : Service() {
 
@@ -24,6 +27,8 @@ class BridgeService : Service() {
     private var sendSatInfo     = true
     private var forceRxToneNull = false
     private var forceTxToneNull = false
+
+    @Volatile private var satelliteActive = false
 
     override fun onBind(intent: Intent?): IBinder? = null
 
@@ -47,6 +52,7 @@ class BridgeService : Service() {
 
                 startForeground(NOTIF_ID, buildNotification(host, port))
                 stopLoop()
+                satelliteActive = false
                 satlibClient = SatlibClient(host, port)
                 bt.connect(mac)
                 startLoop()
@@ -82,30 +88,39 @@ class BridgeService : Service() {
             return
         }
         val client = satlibClient ?: return
+
         val data = try {
             client.poll()
         } catch (e: Exception) {
             broadcastLog("satlib error: ${e.javaClass.simpleName}: ${e.message}")
-            bt.send(N76Protocol.freqModePacket(0L, 0L, 0, 0, satFirmware))
+            exitSatModeIfActive()
             return
         }
 
-        broadcastLog("satlib raw: name='${data.satName}' ts=${data.timestamp} rx=${data.rxFrequencyHz} tx=${data.txFrequencyHz}")
+        broadcastLog("satlib json: ${data.rawJson.take(300)}")
 
         if (data.isIdle) {
-            bt.send(N76Protocol.freqModePacket(0L, 0L, 0, 0, satFirmware))
-            broadcastLog("satlib: idle (name empty or ts=0)")
+            broadcastLog("satlib: idle")
+            exitSatModeIfActive()
             return
         }
 
         val rxHz = data.rxFrequencyHz ?: 0L
         val txHz = data.txFrequencyHz ?: 0L
+
+        if (!isValidSatFreq(rxHz) || !isValidSatFreq(txHz)) {
+            broadcastLog("satlib: freq out of range rx=${rxHz/1_000_000.0} tx=${txHz/1_000_000.0} MHz, ignoring")
+            exitSatModeIfActive()
+            return
+        }
+
         val rxSub = if (forceRxToneNull) 0 else ctcssToSubtone(data.ctcssRxToneHz)
         val txSub = if (forceTxToneNull) 0 else ctcssToSubtone(data.ctcssTxToneHz)
 
         broadcastLog("→ rx=${rxHz/1_000_000.0}MHz tx=${txHz/1_000_000.0}MHz rxTone=$rxSub txTone=$txSub")
 
-        // Original app order: SET_SATELLITE_INFO first, then FREQ_MODE_SET_PAR
+        satelliteActive = true
+
         if (sendSatInfo) {
             val nowMs = System.currentTimeMillis()
             val aosSec = if (data.aosTime > 0)
@@ -124,12 +139,23 @@ class BridgeService : Service() {
         bt.send(N76Protocol.freqModePacket(rxHz, txHz, rxSub, txSub, satFirmware))
     }
 
+    private fun isValidSatFreq(hz: Long) = hz == 0L || hz in 136_000_000L..520_000_000L
+
+    private fun exitSatModeIfActive() {
+        if (satelliteActive) {
+            broadcastLog("bt: exiting satellite mode")
+            bt.send(N76Protocol.exitSatModePacket())
+            satelliteActive = false
+        }
+    }
+
     private fun ctcssToSubtone(hz: Float?): Int {
         if (hz == null || hz <= 0f) return 0
         return (hz * 100).roundToInt()
     }
 
     private fun broadcastLog(msg: String) {
+        Log.d(TAG, msg)
         sendBroadcast(Intent(ACTION_LOG).putExtra(EXTRA_LOG_MSG, msg))
     }
 
