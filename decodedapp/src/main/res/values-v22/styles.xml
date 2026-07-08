@@ -1,0 +1,38 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <style name="AppTheme" parent="@style/Theme.DW.Light.DarkActionBar">
+        <item name="android:windowOptOutEdgeToEdgeEnforcement">true</item>
+        <item name="actionButtonStyle">@style/Widget.ActionButton</item>
+        <item name="cardBackground">@null</item>
+        <item name="colorAccent">@color/colorAccent</item>
+        <item name="colorPrimary">@color/colorPrimary</item>
+        <item name="colorPrimaryDark">@color/colorPrimaryDark</item>
+        <item name="flatButtonStyle">@style/Widget.AppCompat.ActionButton</item>
+        <item name="ic_search_bar_settings">@drawable/ic_settings_24dp</item>
+        <item name="listPreferredItemHeight">48dp</item>
+        <item name="listPreferredItemHeightLarge">64dp</item>
+        <item name="listPreferredItemHeightSmall">40dp</item>
+        <item name="list_button_tint">@color/color_list_button_tint</item>
+        <item name="multiSelectListPreferenceStyle">@style/Widget.NumberPreference</item>
+        <item name="numberPreferenceStyle">@style/Widget.NumberPreference</item>
+        <item name="searchBarClearButtonStyle">@style/Widget.SearchBar.Button.Clear</item>
+        <item name="searchBarGoButtonStyle">@style/Widget.SearchBar.Button.Go</item>
+        <item name="searchBarStyle">@style/Widget.SearchBar</item>
+        <item name="searchBarTextStyle">@style/Widget.SearchBar.Text</item>
+        <item name="searchBarVoiceButtonStyle">@style/Widget.SearchBar.Button.Voice</item>
+        <item name="sinkSizePrimary">0dp</item>
+        <item name="textAppearanceListItemSmall">@style/TextAppearance.ListItemSmall</item>
+    </style>
+    <style name="Base.Theme.AppCompat" parent="@style/Base.V22.Theme.AppCompat">
+    </style>
+    <style name="Base.Theme.AppCompat.Light" parent="@style/Base.V22.Theme.AppCompat.Light">
+    </style>
+    <style name="Base.V22.Theme.AppCompat" parent="@style/Base.V21.Theme.AppCompat">
+        <item name="actionModeShareDrawable">?android:attr/actionModeShareDrawable</item>
+        <item name="editTextBackground">?android:attr/editTextBackground</item>
+    </style>
+    <style name="Base.V22.Theme.AppCompat.Light" parent="@style/Base.V21.Theme.AppCompat.Light">
+        <item name="actionModeShareDrawable">?android:attr/actionModeShareDrawable</item>
+        <item name="editTextBackground">?android:attr/editTextBackground</item>
+    </style>
+</resources>

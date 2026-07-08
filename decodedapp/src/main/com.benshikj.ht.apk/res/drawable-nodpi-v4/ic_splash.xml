@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?>
+<animated-vector xmlns:android="http://schemas.android.com/apk/res/android" xmlns:aapt="http://schemas.android.com/aapt" android:drawable="@drawable/_ic_splash__0_res_0x7f080006">
+    <target
+        android:name="g3"
+        android:animation="@drawable/_ic_splash__1_res_0x7f080007"/>
+    <target
+        android:name="g2"
+        android:animation="@drawable/_ic_splash__2_res_0x7f080008"/>
+    <target
+        android:name="g1"
+        android:animation="@drawable/_ic_splash__3_res_0x7f080009"/>
+    <target
+        android:name="g1"
+        android:animation="@drawable/_ic_splash__4_res_0x7f08000a"/>
+</animated-vector>

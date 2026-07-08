@@ -1,0 +1,35 @@
+Manifest-Version: 1.0
+
+Name: AndroidManifest.xml
+SHA1-Digest: rB8CM/FrRT/jaMP9VqAqUd8Awf4=
+
+Name: lib/arm64-v8a/libPatcher.so
+SHA1-Digest: I18ge4k8taSO4uw4U8kgsAKZctI=
+
+Name: lib/arm64-v8a/libdemod.so
+SHA1-Digest: XzJqOtXbt1dtUg7xd9wkVeD/25k=
+
+Name: lib/arm64-v8a/liblegacy_agc-lib.so
+SHA1-Digest: 7Hnww+oORLNd8I+yW+K0PE1sJEM=
+
+Name: lib/arm64-v8a/liblegacy_ns-lib.so
+SHA1-Digest: 5IAhUCFNaVKa5/HvmZjleGL8IZg=
+
+Name: lib/arm64-v8a/libmdc.so
+SHA1-Digest: msKtgUkMAqo84AjHDV35hpEpRdE=
+
+Name: lib/arm64-v8a/libobjectbox-jni.so
+SHA1-Digest: J3J0I0tdKvrIpW7F6OUo7y5nJtQ=
+
+Name: lib/arm64-v8a/libopus-lib.so
+SHA1-Digest: +7qo/Q5ZnCMHM4gMvrhiYra5BvM=
+
+Name: lib/arm64-v8a/libopus-tools-lib.so
+SHA1-Digest: IpkVURIZeDu3Z6r0g8BP5HYJxBs=
+
+Name: lib/arm64-v8a/libsbc.so
+SHA1-Digest: 88rDDs+wZpwqRUt/nQhndb3Jrtk=
+
+Name: stamp-cert-sha256
+SHA1-Digest: 5vTkm69vqAbusD/fho7oWwc7j+I=
+

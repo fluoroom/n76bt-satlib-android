@@ -1,0 +1,38 @@
+Signature-Version: 1.0
+Created-By: 1.0 (Android)
+SHA1-Digest-Manifest: qfqpa+2J/79VGGIGoxJu6XCWuAs=
+X-Android-APK-Signed: 2, 3
+
+Name: AndroidManifest.xml
+SHA1-Digest: X6u/I3R0LGPillQ2j+fBgmSalh8=
+
+Name: lib/arm64-v8a/libPatcher.so
+SHA1-Digest: v6ipY1lvcCkQMrLWjeVXbKmJxQY=
+
+Name: lib/arm64-v8a/libdemod.so
+SHA1-Digest: HVGsfP7C4HpSJqvGjpdkIHJ5Hbc=
+
+Name: lib/arm64-v8a/liblegacy_agc-lib.so
+SHA1-Digest: G9wl2t9Lmt27gOu6wYFT4fM3c0g=
+
+Name: lib/arm64-v8a/liblegacy_ns-lib.so
+SHA1-Digest: E57P5CuHGZ92gnA/jqGb+754UNA=
+
+Name: lib/arm64-v8a/libmdc.so
+SHA1-Digest: r7SBZAzPxaykbbSVXRoOOUIWhsc=
+
+Name: lib/arm64-v8a/libobjectbox-jni.so
+SHA1-Digest: eHuXX+pGnSWlGBQS14s2MNkrXLQ=
+
+Name: lib/arm64-v8a/libopus-lib.so
+SHA1-Digest: NRCzxRKfH0up7mIPsAGELDe//vE=
+
+Name: lib/arm64-v8a/libopus-tools-lib.so
+SHA1-Digest: VbzcMfII+YEsCmAxnd3x6TjRVuk=
+
+Name: lib/arm64-v8a/libsbc.so
+SHA1-Digest: hV83GzVk4rLRGm6yzSBK4oNDPsc=
+
+Name: stamp-cert-sha256
+SHA1-Digest: Bs40BvDZ1xrbgQrPTD2x5w/NfHQ=
+

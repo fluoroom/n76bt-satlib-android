@@ -1,0 +1,9 @@
+<?xml version="1.0" encoding="utf-8"?>
+<TextView xmlns:android="http://schemas.android.com/apk/res/android"
+    android:textColor="@color/search_bar_pop_text_color"
+    android:ellipsize="marquee"
+    android:id="@android:id/text1"
+    android:layout_width="match_parent"
+    android:layout_height="@dimen/recommended_touch_area_size"
+    android:maxLines="1"
+    style="?android:attr/dropDownItemStyle"/>

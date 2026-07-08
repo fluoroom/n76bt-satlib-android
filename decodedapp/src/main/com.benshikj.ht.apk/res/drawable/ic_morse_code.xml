@@ -1,0 +1,11 @@
+<?xml version="1.0" encoding="utf-8"?>
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:height="24dp"
+    android:width="24dp"
+    android:viewportWidth="96"
+    android:viewportHeight="96">
+    <path
+        android:name="Morse code"
+        android:fillColor="@color/color_action_button"
+        android:pathData="m8 16v12h32v-12zm48 -2c-4.42 0 -8 3.58 -8 8c0 4.42 3.58 8 8 8c4.42 0 8 -3.58 8 -8c0 -4.42 -3.58 -8 -8 -8zm24 0c-4.42 0 -8 3.58 -8 8c0 4.42 3.58 8 8 8c4.42 0 8 -3.58 8 -8c0 -4.42 -3.58 -8 -8 -8zm-48 28v12h32v-12zm-16 -2c-4.42 0 -8 3.58 -8 8c0 4.42 3.58 8 8 8c4.42 0 8 -3.58 8 -8c0 -4.42 -3.58 -8 -8 -8zm64 0c-4.42 0 -8 3.58 -8 8c0 4.42 3.58 8 8 8c4.42 0 8 -3.58 8 -8c0 -4.42 -3.58 -8 -8 -8zm-24 28v12h32v-12zm-40 -2c-4.42 0 -8 3.58 -8 8c0 4.42 3.58 8 8 8c4.42 0 8 -3.58 8 -8c0 -4.42 -3.58 -8 -8 -8zm24 0c-4.42 0 -8 3.58 -8 8c0 4.42 3.58 8 8 8c4.42 0 8 -3.58 8 -8c0 -4.42 -3.58 -8 -8 -8z"/>
+</vector>

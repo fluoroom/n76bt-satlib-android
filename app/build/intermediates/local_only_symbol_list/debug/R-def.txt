@@ -1,0 +1,22 @@
+R_DEF: Internal format may change without notice
+local
+id btnToggle
+id checkSatFw
+id checkSatInfo
+id editAltitude
+id editRxSubtone
+id editSatName
+id editTxSubtone
+id spinnerDevices
+id tvLog
+layout activity_main
+string app_name
+string btn_start
+string btn_stop
+string label_altitude
+string label_bt_device
+string label_rx_subtone
+string label_sat_fw
+string label_sat_info
+string label_sat_name
+string label_tx_subtone

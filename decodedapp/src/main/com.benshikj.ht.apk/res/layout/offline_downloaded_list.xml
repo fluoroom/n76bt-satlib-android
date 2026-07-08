@@ -1,0 +1,47 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android" xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:orientation="vertical"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent">
+    <ListView
+        android:id="@+id/downloaded_map_list"
+        android:background="?attr/cardBackground"
+        android:paddingLeft="3dp"
+        android:paddingRight="3dp"
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_weight="1"/>
+    <androidx.appcompat.widget.LinearLayoutCompat
+        android:background="?attr/colorPrimary"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:elevation="2dp"
+        app:divider="?android:attr/listDivider"
+        app:dividerPadding="3dp"
+        app:showDividers="middle">
+        <Button
+            android:id="@+id/update_all"
+            android:background="?attr/selectableItemBackground"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:text="@string/updateAll"
+            android:layout_weight="1"
+            style="@style/Widget.AppCompat.Button.Colored"/>
+        <Button
+            android:id="@+id/download_all"
+            android:background="?attr/selectableItemBackground"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:text="@string/downloadAll"
+            android:layout_weight="1"
+            style="@style/Widget.AppCompat.Button.Colored"/>
+        <Button
+            android:id="@+id/pause_all"
+            android:background="?attr/selectableItemBackground"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:text="@string/pauseAll"
+            android:layout_weight="1"
+            style="@style/Widget.AppCompat.Button.Colored"/>
+    </androidx.appcompat.widget.LinearLayoutCompat>
+</LinearLayout>
