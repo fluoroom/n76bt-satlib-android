@@ -82,27 +82,25 @@ class BridgeService : Service() {
             client.poll()
         } catch (e: Exception) {
             broadcastLog("satlib error: ${e.message}")
+            // Keep the radio in satellite mode even when the server is unreachable
+            bt.send(N76Protocol.freqModePacket(0L, 0L, 0, 0, satFirmware))
             return
         }
+
+        // Always send the freq packet — this is what keeps the radio in SATELLITE screen mode.
+        // Use 0 Hz when idle or when satlib has no frequency data yet.
+        val rxHz = data.rxFrequencyHz ?: 0L
+        val txHz = data.txFrequencyHz ?: 0L
+        val rxSub = if (forceRxToneNull) 0 else ctcssToSubtone(data.ctcssRxToneHz)
+        val txSub = if (forceTxToneNull) 0 else ctcssToSubtone(data.ctcssTxToneHz)
+
+        bt.send(N76Protocol.freqModePacket(rxHz, txHz, rxSub, txSub, satFirmware))
 
         if (data.isIdle) {
             broadcastLog("satlib: idle")
             return
         }
 
-        val rxHz = data.rxFrequencyHz ?: run {
-            broadcastLog("satlib: no RX frequency")
-            return
-        }
-        val txHz = data.txFrequencyHz ?: run {
-            broadcastLog("satlib: no TX frequency")
-            return
-        }
-
-        val rxSub = if (forceRxToneNull) 0 else ctcssToSubtone(data.ctcssRxToneHz)
-        val txSub = if (forceTxToneNull) 0 else ctcssToSubtone(data.ctcssTxToneHz)
-
-        bt.send(N76Protocol.freqModePacket(rxHz, txHz, rxSub, txSub, satFirmware))
         broadcastLog("rx=${rxHz/1_000_000.0}MHz tx=${txHz/1_000_000.0}MHz rxTone=$rxSub txTone=$txSub")
 
         if (sendSatInfo) {
