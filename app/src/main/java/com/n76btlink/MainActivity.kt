@@ -13,7 +13,6 @@ import android.media.AudioManager
 import android.net.Uri
 import android.os.Build
 import android.os.Bundle
-import android.view.MotionEvent
 import android.view.View
 import android.widget.*
 import androidx.activity.result.contract.ActivityResultContracts
@@ -41,7 +40,6 @@ class MainActivity : AppCompatActivity() {
     private lateinit var tvOutputFolder:     TextView
     private lateinit var btnPickFolder:      Button
     private lateinit var btnRecord:          Button
-    private lateinit var btnPtt:             Button
     private lateinit var btnToggle:          Button
     private lateinit var tvLog:              TextView
 
@@ -99,7 +97,6 @@ class MainActivity : AppCompatActivity() {
         tvOutputFolder     = findViewById(R.id.tvOutputFolder)
         btnPickFolder      = findViewById(R.id.btnPickFolder)
         btnRecord          = findViewById(R.id.btnRecord)
-        btnPtt             = findViewById(R.id.btnPtt)
         btnToggle          = findViewById(R.id.btnToggle)
         tvLog              = findViewById(R.id.tvLog)
 
@@ -172,25 +169,6 @@ class MainActivity : AppCompatActivity() {
         }
 
         btnRecord.setOnClickListener { toggleRecording() }
-
-        btnPtt.setOnTouchListener { _, ev ->
-            when (ev.action) {
-                MotionEvent.ACTION_DOWN -> {
-                    if (!serviceRunning) { toast("Start bridge first"); false }
-                    else {
-                        startService(Intent(this, BridgeService::class.java)
-                            .setAction(BridgeService.ACTION_PTT_DOWN))
-                        true
-                    }
-                }
-                MotionEvent.ACTION_UP, MotionEvent.ACTION_CANCEL -> {
-                    startService(Intent(this, BridgeService::class.java)
-                        .setAction(BridgeService.ACTION_PTT_UP))
-                    true
-                }
-                else -> false
-            }
-        }
 
         btnToggle.setOnClickListener {
             if (serviceRunning) stopBridge() else startBridge()

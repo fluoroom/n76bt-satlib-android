@@ -25,7 +25,6 @@
     <string name="label_folder_default">(default — app media folder)</string>
     <string name="btn_record_start">Record</string>
     <string name="btn_record_stop">Stop Recording</string>
-    <string name="btn_ptt">PTT (hold)</string>
     <string name="audio_input_default">Default</string>
     <string name="audio_type_phone_mic">Phone mic</string>
     <string name="audio_type_wired">Wired</string>

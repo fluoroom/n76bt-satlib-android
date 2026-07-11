@@ -102,13 +102,6 @@ class BridgeService : Service() {
                 startRecording(recHt, recIn, devId, currentSatName, folderUri)
             }
             ACTION_RECORD_STOP -> stopRecording()
-            ACTION_PTT_DOWN -> {
-                if (bt.isConnected) bt.send(N76Protocol.pttAssert())
-                else broadcastLog("ptt: BT not connected")
-            }
-            ACTION_PTT_UP -> {
-                if (bt.isConnected) bt.send(N76Protocol.pttRelease())
-            }
             ACTION_AUDIO_MONITOR -> {
                 val on = intent.getBooleanExtra(EXTRA_MONITOR_ON, false)
                 audioMonitorOn = on
@@ -392,8 +385,6 @@ class BridgeService : Service() {
         const val ACTION_AUDIO_MONITOR = "com.n76btlink.AUDIO_MONITOR"
         const val ACTION_RECORD_START  = "com.n76btlink.RECORD_START"
         const val ACTION_RECORD_STOP   = "com.n76btlink.RECORD_STOP"
-        const val ACTION_PTT_DOWN      = "com.n76btlink.PTT_DOWN"
-        const val ACTION_PTT_UP        = "com.n76btlink.PTT_UP"
         const val EXTRA_MONITOR_ON     = "monitor_on"
         const val EXTRA_MAC            = "mac"
         const val EXTRA_HOST           = "host"
