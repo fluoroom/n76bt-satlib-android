@@ -7,19 +7,19 @@
     <string name="label_port">Port</string>
     <string name="label_poll_interval">Poll Interval</string>
     <string name="label_radio_options">Radio Options</string>
-    <string name="label_send_sat_info">Send satellite info &amp; frequency to radio</string>
-    <string name="label_force_rx_null">Force RX CTCSS tone = none (ignore satlib value)</string>
-    <string name="label_force_tx_null">Force TX CTCSS tone = none (ignore satlib value)</string>
-    <string name="label_audio_sco">Receive RX audio via RFCOMM (SSTV)</string>
+    <string name="label_send_sat_info">Send sat. info &amp; freq to radio (HT satellite mode)</string>
+    <string name="label_force_rx_tone">Force RX CTCSS:</string>
+    <string name="label_force_tx_tone">Force TX CTCSS:</string>
+    <string name="label_audio_sco">Receive RX audio via RFCOMM (digimodes)</string>
     <string name="btn_start">Start</string>
     <string name="btn_stop">Stop</string>
-    <string name="btn_monitor_off">Speaker Monitor: OFF</string>
-    <string name="btn_monitor_on">Speaker Monitor: ON</string>
+    <string name="btn_monitor_off">(digimodes) Speaker Monitor: OFF</string>
+    <string name="btn_monitor_on">(digimodes) Speaker Monitor: ON</string>
     <string name="label_audio">Audio</string>
     <string name="label_audio_input">Phone mic</string>
     <string name="label_record_ht">Record HT audio (includes TX mic)</string>
     <string name="label_record_input">Record phone mic</string>
-    <string name="label_record_sat_only">Record only during satellite pass (new file per pass)</string>
+    <string name="label_record_sat_only">Record only during satellite track (new file per track)</string>
     <string name="label_output_folder">Audio output folder</string>
     <string name="btn_pick_folder">Pick…</string>
     <string name="label_folder_default">(default — app media folder)</string>

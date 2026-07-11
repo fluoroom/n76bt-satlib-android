@@ -113,19 +113,49 @@
             android:checked="true"
             android:text="@string/label_send_sat_info" />
 
-        <CheckBox
-            android:id="@+id/checkForceRxNull"
-            android:layout_width="wrap_content"
+        <LinearLayout
+            android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:checked="false"
-            android:text="@string/label_force_rx_null" />
+            android:gravity="center_vertical"
+            android:orientation="horizontal">
 
-        <CheckBox
-            android:id="@+id/checkForceTxNull"
-            android:layout_width="wrap_content"
+            <CheckBox
+                android:id="@+id/checkForceRx"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:checked="false"
+                android:text="@string/label_force_rx_tone" />
+
+            <Spinner
+                android:id="@+id/spinnerForceRxTone"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="8dp"
+                android:layout_weight="1" />
+
+        </LinearLayout>
+
+        <LinearLayout
+            android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:checked="false"
-            android:text="@string/label_force_tx_null" />
+            android:gravity="center_vertical"
+            android:orientation="horizontal">
+
+            <CheckBox
+                android:id="@+id/checkForceTx"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:checked="false"
+                android:text="@string/label_force_tx_tone" />
+
+            <Spinner
+                android:id="@+id/spinnerForceTxTone"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_marginStart="8dp"
+                android:layout_weight="1" />
+
+        </LinearLayout>
 
         <CheckBox
             android:id="@+id/checkAudioSco"

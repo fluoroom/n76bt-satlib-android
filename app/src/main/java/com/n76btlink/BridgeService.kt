@@ -27,13 +27,14 @@ class BridgeService : Service() {
     private var satlibClient: SatlibClient? = null
     private var executor: ScheduledExecutorService? = null
 
-    private var pollIntervalMs  = 1000L
-    private var sendSatInfo     = true
-    private var forceRxToneNull = false
-    private var forceTxToneNull = false
-    private var audioRfcomm     = false
+    private var pollIntervalMs = 1000L
+    private var sendSatInfo    = true
+    private var forceRxTone    = -1  // -1=use satlib; 0=none; >0=subtone value (Hz×100)
+    private var forceTxTone    = -1
+    private var audioRfcomm    = false
 
     @Volatile private var satelliteActive = false
+    @Volatile private var currentSatName  = ""
 
     // Audio state
     private var n76Mac = ""
@@ -65,11 +66,11 @@ class BridgeService : Service() {
                 val mac  = intent.getStringExtra(EXTRA_MAC) ?: return START_NOT_STICKY
                 val host = intent.getStringExtra(EXTRA_HOST) ?: "127.0.0.1"
                 val port = intent.getIntExtra(EXTRA_PORT, 4534)
-                pollIntervalMs  = intent.getLongExtra(EXTRA_POLL_MS, 1000L)
-                sendSatInfo     = intent.getBooleanExtra(EXTRA_SEND_SAT_INFO, true)
-                forceRxToneNull = intent.getBooleanExtra(EXTRA_FORCE_RX_NULL, false)
-                forceTxToneNull = intent.getBooleanExtra(EXTRA_FORCE_TX_NULL, false)
-                audioRfcomm     = intent.getBooleanExtra(EXTRA_AUDIO_SCO, false)
+                pollIntervalMs = intent.getLongExtra(EXTRA_POLL_MS, 1000L)
+                sendSatInfo    = intent.getBooleanExtra(EXTRA_SEND_SAT_INFO, true)
+                forceRxTone    = intent.getIntExtra(EXTRA_FORCE_RX_TONE, -1)
+                forceTxTone    = intent.getIntExtra(EXTRA_FORCE_TX_TONE, -1)
+                audioRfcomm    = intent.getBooleanExtra(EXTRA_AUDIO_SCO, false)
                 recordSatOnly   = intent.getBooleanExtra(EXTRA_RECORD_SAT_ONLY, false)
                 recordSatHt     = intent.getBooleanExtra(EXTRA_RECORD_HT, false)
                 recordSatInput  = intent.getBooleanExtra(EXTRA_RECORD_INPUT, false)
@@ -80,6 +81,7 @@ class BridgeService : Service() {
                 stopLoop()
                 teardownAudio()
                 satelliteActive = false
+                currentSatName  = ""
                 n76Mac          = mac
 
                 satlibClient = SatlibClient(host, port)
@@ -96,7 +98,8 @@ class BridgeService : Service() {
                 val recIn  = intent.getBooleanExtra(EXTRA_RECORD_INPUT, false)
                 val devId  = intent.getIntExtra(EXTRA_INPUT_DEVICE_ID, 0)
                 val folderUri = intent.getStringExtra(EXTRA_OUTPUT_FOLDER)?.let { Uri.parse(it) }
-                startRecording(recHt, recIn, devId, folderUri)
+                broadcastLog("rec: recording started")
+                startRecording(recHt, recIn, devId, currentSatName, folderUri)
             }
             ACTION_RECORD_STOP -> stopRecording()
             ACTION_PTT_DOWN -> {
@@ -174,7 +177,8 @@ class BridgeService : Service() {
         broadcastLog("audio: BSS written — audio_relay_en=1 (was 0)")
     }
 
-    private fun startRecording(recordHt: Boolean, recordInput: Boolean, deviceId: Int, safDirUri: Uri? = null) {
+    private fun startRecording(recordHt: Boolean, recordInput: Boolean, deviceId: Int,
+                               satName: String = "", safDirUri: Uri? = null) {
         if (recordHt && hmLinkAudio == null)
             broadcastLog("rec: WARNING — HT audio channel not active (enable Receive RX audio first)")
         audioRecorder?.stop(); audioRecorder = null
@@ -183,30 +187,31 @@ class BridgeService : Service() {
 
         when {
             recordHt && recordInput -> {
-                // Two separate mono files: _ht and _mic
-                val htRec = AudioRecorder(this).apply { onLog = { broadcastLog(it) } }
+                val htRec  = AudioRecorder(this).apply { onLog = { broadcastLog(it) } }
                 val micRec = AudioRecorder(this).apply { onLog = { broadcastLog(it) } }
                 audioRecorderHt = htRec
                 audioRecorder = micRec
                 hmLinkAudio?.onPcmShorts = { shorts, n -> htRec.feedHtShorts(shorts, n) }
                 htRec.start(recordHt = true, recordInput = false, inputDeviceId = 0,
-                    safDirUri = safDirUri, fileSuffix = "ht")
+                    satName = satName, safDirUri = safDirUri, fileSuffix = "ht")
                 micRec.start(recordHt = false, recordInput = true, inputDeviceId = deviceId,
-                    safDirUri = safDirUri, fileSuffix = "mic")
-                broadcastLog("rec: starting two tracks — HT (_ht) + phone mic (_mic)")
+                    satName = satName, safDirUri = safDirUri, fileSuffix = "mic")
+                broadcastLog("rec: two tracks — HT + phone mic")
             }
             recordHt -> {
                 val rec = AudioRecorder(this).apply { onLog = { broadcastLog(it) } }
                 audioRecorder = rec
                 hmLinkAudio?.onPcmShorts = { shorts, n -> rec.feedHtShorts(shorts, n) }
-                rec.start(recordHt = true, recordInput = false, inputDeviceId = 0, safDirUri = safDirUri)
-                broadcastLog("rec: starting HT audio track")
+                rec.start(recordHt = true, recordInput = false, inputDeviceId = 0,
+                    satName = satName, safDirUri = safDirUri, fileSuffix = "ht")
+                broadcastLog("rec: HT audio track")
             }
             recordInput -> {
                 val rec = AudioRecorder(this).apply { onLog = { broadcastLog(it) } }
                 audioRecorder = rec
-                rec.start(recordHt = false, recordInput = true, inputDeviceId = deviceId, safDirUri = safDirUri)
-                broadcastLog("rec: starting phone mic track")
+                rec.start(recordHt = false, recordInput = true, inputDeviceId = deviceId,
+                    satName = satName, safDirUri = safDirUri, fileSuffix = "mic")
+                broadcastLog("rec: phone mic track")
             }
         }
     }
@@ -295,17 +300,21 @@ class BridgeService : Service() {
             return
         }
 
-        val rxSub = if (forceRxToneNull) 0 else ctcssToSubtone(data.ctcssRxToneHz)
-        val txSub = if (forceTxToneNull) 0 else ctcssToSubtone(data.ctcssTxToneHz)
+        val rxSub = if (forceRxTone >= 0) forceRxTone else ctcssToSubtone(data.ctcssRxToneHz)
+        val txSub = if (forceTxTone >= 0) forceTxTone else ctcssToSubtone(data.ctcssTxToneHz)
 
         broadcastLog("→ rx=${rxHz/1_000_000.0}MHz tx=${txHz/1_000_000.0}MHz rxTone=$rxSub txTone=$txSub")
 
         val wasActive = satelliteActive
+        currentSatName = data.satName
         satelliteActive = true
 
-        // Auto-start recording on satellite pass begin
-        if (!wasActive && recordSatOnly) {
-            startRecording(recordSatHt, recordSatInput, recordSatDevId, outputFolderUri)
+        if (!wasActive) {
+            broadcastLog("sat: mode ON — ${data.satName}")
+            if (recordSatOnly) {
+                broadcastLog("rec: auto-start — satellite track began")
+                startRecording(recordSatHt, recordSatInput, recordSatDevId, currentSatName, outputFolderUri)
+            }
         }
 
         val nowMs = System.currentTimeMillis()
@@ -328,10 +337,10 @@ class BridgeService : Service() {
 
     private fun exitSatModeIfActive() {
         if (satelliteActive) {
-            broadcastLog("bt: exiting satellite mode")
+            broadcastLog("sat: mode OFF")
             bt.send(N76Protocol.exitSatModePacket())
             satelliteActive = false
-            // Auto-stop recording when satellite pass ends
+            currentSatName = ""
             if (recordSatOnly) stopRecording()
         }
     }
@@ -391,8 +400,8 @@ class BridgeService : Service() {
         const val EXTRA_PORT           = "port"
         const val EXTRA_POLL_MS        = "poll_ms"
         const val EXTRA_SEND_SAT_INFO  = "send_sat_info"
-        const val EXTRA_FORCE_RX_NULL  = "force_rx_null"
-        const val EXTRA_FORCE_TX_NULL  = "force_tx_null"
+        const val EXTRA_FORCE_RX_TONE  = "force_rx_tone"   // Int: -1=no override, 0=none, >0=subtone
+        const val EXTRA_FORCE_TX_TONE  = "force_tx_tone"
         const val EXTRA_AUDIO_SCO      = "audio_sco"
         const val EXTRA_LOG_MSG        = "log_msg"
         const val EXTRA_RECORD_HT      = "record_ht"

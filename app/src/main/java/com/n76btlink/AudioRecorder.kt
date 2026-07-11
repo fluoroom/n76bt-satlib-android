@@ -51,7 +51,8 @@ class AudioRecorder(private val context: Context) {
     // ── Public API ────────────────────────────────────────────────────────────
 
     fun start(recordHt: Boolean, recordInput: Boolean, inputDeviceId: Int,
-              outputDir: File? = null, safDirUri: Uri? = null, fileSuffix: String = "") {
+              satName: String = "", outputDir: File? = null, safDirUri: Uri? = null,
+              fileSuffix: String = "") {
         if (running) { log("rec: already running"); return }
         if (!recordHt && !recordInput) { log("rec: nothing selected"); return }
         this.recordHt = recordHt
@@ -62,7 +63,9 @@ class AudioRecorder(private val context: Context) {
         val channels = if (recordHt && recordInput) 2 else 1
         val opusEncoder = findOpusEncoder(channels)
         val ext = if (opusEncoder != null) "ogg" else "wav"
-        val tag = SimpleDateFormat("yyyyMMdd_HHmmss", Locale.US).format(Date())
+        val ts = SimpleDateFormat("yyyy-MM-dd-HH-mm-ss", Locale.US).format(Date())
+        val satPart = if (satName.isNotEmpty()) "-${satName.replace(Regex("[^A-Za-z0-9._-]"), "_")}" else ""
+        val sfx = if (fileSuffix.isNotEmpty()) "-$fileSuffix" else ""
         // SAF URIs require ContentResolver — write to cache first, then copy via SAF after encoding
         val dir = when {
             safDirUri != null -> context.cacheDir
@@ -70,8 +73,7 @@ class AudioRecorder(private val context: Context) {
             else -> context.getExternalFilesDir(Environment.DIRECTORY_MUSIC) ?: context.filesDir
         }
         dir.mkdirs()
-        val suffix = if (fileSuffix.isNotEmpty()) "_$fileSuffix" else ""
-        outputFile = File(dir, "n76_$tag$suffix.$ext")
+        outputFile = File(dir, "$ts$satPart$sfx.$ext")
 
         if (recordInput) initAudioRecord(inputDeviceId)
         running = true
@@ -79,10 +81,10 @@ class AudioRecorder(private val context: Context) {
         if (opusEncoder != null) {
             thread(name = "n76-rec", isDaemon = true) { encodeOpus(opusEncoder, channels) }
         } else {
-            log("rec: Opus encoder unavailable, writing WAV")
+            log("rec: Opus unavailable — writing WAV")
             thread(name = "n76-rec", isDaemon = true) { encodeWav(channels) }
         }
-        log("rec: → ${outputFile!!.name}")
+        log("rec: writing ${outputFile!!.name}")
     }
 
     /** Stop recording. Returns the absolute path of the saved file, or null if never started. */
@@ -355,7 +357,7 @@ class AudioRecorder(private val context: Context) {
     private fun finalizeFile(file: File) {
         val uri = pendingSafUri
         if (uri == null) {
-            log("rec: saved → ${file.absolutePath}")
+            log("rec: saved → ${file.name}")
             return
         }
         try {
@@ -364,14 +366,14 @@ class AudioRecorder(private val context: Context) {
             val mime = if (file.name.endsWith(".ogg")) "audio/ogg" else "audio/wav"
             val destUri = DocumentsContract.createDocument(
                 context.contentResolver, parentUri, mime, file.name
-            ) ?: run { log("rec: SAF: could not create document, file kept at ${file.absolutePath}"); return }
+            ) ?: run { log("rec: SAF error — could not create document, kept at ${file.name}"); return }
             context.contentResolver.openOutputStream(destUri)?.use { out ->
                 file.inputStream().use { it.copyTo(out) }
             }
             file.delete()
-            log("rec: saved → $destUri")
+            log("rec: saved → ${file.name}")
         } catch (e: Exception) {
-            log("rec: SAF copy failed (${e.message}) — file kept at ${file.absolutePath}")
+            log("rec: SAF copy failed (${e.message}) — kept at ${file.name}")
         }
     }
 

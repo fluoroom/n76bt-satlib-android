@@ -80,7 +80,7 @@ class HmLinkAudioReceiver(private val mac: String) {
                 socket = sock
                 adapter.cancelDiscovery()
                 sock.connect()
-                log("audio: HMLink audio channel connected")
+                log("audio: HT audio connected OK")
                 val track = buildAudioTrack()
                 currentTrack = track
                 track.play()
@@ -94,14 +94,14 @@ class HmLinkAudioReceiver(private val mac: String) {
                 }
             } catch (e: Exception) {
                 if (running) {
-                    log("audio: HMLink error — ${e.javaClass.simpleName}: ${e.message}")
+                    log("audio: HT disconnected — retrying in 3s… (${e.message})")
                     Thread.sleep(3000)
                 }
             } finally {
                 closeSocket()
             }
         }
-        log("audio: HMLink audio stopped")
+        log("audio: HT audio stopped")
     }
 
     private fun buildAudioTrack(): AudioTrack {

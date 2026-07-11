@@ -23,25 +23,27 @@ import androidx.core.content.ContextCompat
 
 class MainActivity : AppCompatActivity() {
 
-    private lateinit var spinnerDevices:    Spinner
-    private lateinit var editHost:          EditText
-    private lateinit var editPort:          EditText
-    private lateinit var spinnerInterval:   Spinner
-    private lateinit var checkSendSatInfo:  CheckBox
-    private lateinit var checkForceRxNull:  CheckBox
-    private lateinit var checkForceTxNull:  CheckBox
-    private lateinit var checkAudioSco:     CheckBox
-    private lateinit var btnMonitor:        Button
-    private lateinit var spinnerAudioInput: Spinner
-    private lateinit var checkRecordHt:     CheckBox
-    private lateinit var checkRecordInput:  CheckBox
+    private lateinit var spinnerDevices:     Spinner
+    private lateinit var editHost:           EditText
+    private lateinit var editPort:           EditText
+    private lateinit var spinnerInterval:    Spinner
+    private lateinit var checkSendSatInfo:   CheckBox
+    private lateinit var checkForceRx:       CheckBox
+    private lateinit var spinnerForceRxTone: Spinner
+    private lateinit var checkForceTx:       CheckBox
+    private lateinit var spinnerForceTxTone: Spinner
+    private lateinit var checkAudioSco:      CheckBox
+    private lateinit var btnMonitor:         Button
+    private lateinit var spinnerAudioInput:  Spinner
+    private lateinit var checkRecordHt:      CheckBox
+    private lateinit var checkRecordInput:   CheckBox
     private lateinit var checkRecordSatOnly: CheckBox
-    private lateinit var tvOutputFolder:    TextView
-    private lateinit var btnPickFolder:     Button
-    private lateinit var btnRecord:         Button
-    private lateinit var btnPtt:            Button
-    private lateinit var btnToggle:         Button
-    private lateinit var tvLog:             TextView
+    private lateinit var tvOutputFolder:     TextView
+    private lateinit var btnPickFolder:      Button
+    private lateinit var btnRecord:          Button
+    private lateinit var btnPtt:             Button
+    private lateinit var btnToggle:          Button
+    private lateinit var tvLog:              TextView
 
     private var pairedDevices: List<BluetoothDevice> = emptyList()
     private var audioInputDevices: List<AudioDeviceInfo> = emptyList()
@@ -79,32 +81,50 @@ class MainActivity : AppCompatActivity() {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_main)
 
-        spinnerDevices    = findViewById(R.id.spinnerDevices)
-        editHost          = findViewById(R.id.editHost)
-        editPort          = findViewById(R.id.editPort)
-        spinnerInterval   = findViewById(R.id.spinnerInterval)
-        checkSendSatInfo  = findViewById(R.id.checkSendSatInfo)
-        checkForceRxNull  = findViewById(R.id.checkForceRxNull)
-        checkForceTxNull  = findViewById(R.id.checkForceTxNull)
-        checkAudioSco     = findViewById(R.id.checkAudioSco)
-        btnMonitor        = findViewById(R.id.btnMonitor)
-        spinnerAudioInput = findViewById(R.id.spinnerAudioInput)
-        checkRecordHt     = findViewById(R.id.checkRecordHt)
-        checkRecordInput  = findViewById(R.id.checkRecordInput)
+        spinnerDevices     = findViewById(R.id.spinnerDevices)
+        editHost           = findViewById(R.id.editHost)
+        editPort           = findViewById(R.id.editPort)
+        spinnerInterval    = findViewById(R.id.spinnerInterval)
+        checkSendSatInfo   = findViewById(R.id.checkSendSatInfo)
+        checkForceRx       = findViewById(R.id.checkForceRx)
+        spinnerForceRxTone = findViewById(R.id.spinnerForceRxTone)
+        checkForceTx       = findViewById(R.id.checkForceTx)
+        spinnerForceTxTone = findViewById(R.id.spinnerForceTxTone)
+        checkAudioSco      = findViewById(R.id.checkAudioSco)
+        btnMonitor         = findViewById(R.id.btnMonitor)
+        spinnerAudioInput  = findViewById(R.id.spinnerAudioInput)
+        checkRecordHt      = findViewById(R.id.checkRecordHt)
+        checkRecordInput   = findViewById(R.id.checkRecordInput)
         checkRecordSatOnly = findViewById(R.id.checkRecordSatOnly)
-        tvOutputFolder    = findViewById(R.id.tvOutputFolder)
-        btnPickFolder     = findViewById(R.id.btnPickFolder)
-        btnRecord         = findViewById(R.id.btnRecord)
-        btnPtt            = findViewById(R.id.btnPtt)
-        btnToggle         = findViewById(R.id.btnToggle)
-        tvLog             = findViewById(R.id.tvLog)
+        tvOutputFolder     = findViewById(R.id.tvOutputFolder)
+        btnPickFolder      = findViewById(R.id.btnPickFolder)
+        btnRecord          = findViewById(R.id.btnRecord)
+        btnPtt             = findViewById(R.id.btnPtt)
+        btnToggle          = findViewById(R.id.btnToggle)
+        tvLog              = findViewById(R.id.tvLog)
 
         spinnerInterval.adapter = ArrayAdapter(
             this,
             android.R.layout.simple_spinner_item,
             pollStepsMs.map { "${it} ms" }
         ).also { it.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item) }
-        spinnerInterval.setSelection(3) // default 1000 ms
+        spinnerInterval.setSelection(1) // default 500 ms
+
+        val ctcssLabels = listOf("none") + CTCSS_SUBTONES.drop(1).map { "%.1f Hz".format(it / 100.0) }
+        fun ctcssAdapter() = ArrayAdapter(this, android.R.layout.simple_spinner_item, ctcssLabels)
+            .also { it.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item) }
+        spinnerForceRxTone.adapter = ctcssAdapter()
+        spinnerForceTxTone.adapter = ctcssAdapter()
+
+        // Restart bridge when a forced tone value changes (only matters when checkbox is checked)
+        val toneSpinnerListener = object : AdapterView.OnItemSelectedListener {
+            override fun onItemSelected(p: AdapterView<*>?, v: View?, pos: Int, id: Long) {
+                if (serviceRunning) { tvLog.append("Force tone changed — restarting bridge…\n"); stopBridge(); startBridge() }
+            }
+            override fun onNothingSelected(p: AdapterView<*>?) {}
+        }
+        spinnerForceRxTone.onItemSelectedListener = toneSpinnerListener
+        spinnerForceTxTone.onItemSelectedListener = toneSpinnerListener
 
         // Restore saved output folder
         prefs.getString("output_folder_uri", null)?.let { uriStr ->
@@ -113,7 +133,6 @@ class MainActivity : AppCompatActivity() {
             tvOutputFolder.text = uri.lastPathSegment ?: uriStr
         }
 
-        // When Record HT is selected, automatically enable Receive RX audio (needed for HT audio)
         checkRecordHt.setOnCheckedChangeListener { _, checked ->
             if (checked) checkAudioSco.isChecked = true
         }
@@ -122,7 +141,6 @@ class MainActivity : AppCompatActivity() {
             btnRecord.visibility = if (checked) View.GONE else View.VISIBLE
         }
 
-        // Radio options: update monitor button visibility and restart bridge if running
         val radioOptionListener = { _: android.widget.CompoundButton, _: Boolean ->
             btnMonitor.visibility = if (checkAudioSco.isChecked) View.VISIBLE else View.GONE
             if (!checkAudioSco.isChecked) resetMonitor()
@@ -135,8 +153,8 @@ class MainActivity : AppCompatActivity() {
         }
         checkAudioSco.setOnCheckedChangeListener(radioOptionListener)
         checkSendSatInfo.setOnCheckedChangeListener(radioOptionListener)
-        checkForceRxNull.setOnCheckedChangeListener(radioOptionListener)
-        checkForceTxNull.setOnCheckedChangeListener(radioOptionListener)
+        checkForceRx.setOnCheckedChangeListener(radioOptionListener)
+        checkForceTx.setOnCheckedChangeListener(radioOptionListener)
 
         btnMonitor.setOnClickListener {
             monitorOn = !monitorOn
@@ -283,7 +301,9 @@ class MainActivity : AppCompatActivity() {
 
         val host   = editHost.text.toString().trim().ifBlank { "127.0.0.1" }
         val port   = editPort.text.toString().trim().toIntOrNull() ?: 4534
-        val pollMs = pollStepsMs.getOrElse(spinnerInterval.selectedItemPosition) { 1000L }
+        val pollMs = pollStepsMs.getOrElse(spinnerInterval.selectedItemPosition) { 500L }
+        val forceRxTone = if (checkForceRx.isChecked) CTCSS_SUBTONES[spinnerForceRxTone.selectedItemPosition] else -1
+        val forceTxTone = if (checkForceTx.isChecked) CTCSS_SUBTONES[spinnerForceTxTone.selectedItemPosition] else -1
 
         val svcIntent = Intent(this, BridgeService::class.java).apply {
             action = BridgeService.ACTION_START
@@ -292,8 +312,8 @@ class MainActivity : AppCompatActivity() {
             putExtra(BridgeService.EXTRA_PORT,             port)
             putExtra(BridgeService.EXTRA_POLL_MS,          pollMs)
             putExtra(BridgeService.EXTRA_SEND_SAT_INFO,    checkSendSatInfo.isChecked)
-            putExtra(BridgeService.EXTRA_FORCE_RX_NULL,    checkForceRxNull.isChecked)
-            putExtra(BridgeService.EXTRA_FORCE_TX_NULL,    checkForceTxNull.isChecked)
+            putExtra(BridgeService.EXTRA_FORCE_RX_TONE,    forceRxTone)
+            putExtra(BridgeService.EXTRA_FORCE_TX_TONE,    forceTxTone)
             putExtra(BridgeService.EXTRA_AUDIO_SCO,        checkAudioSco.isChecked)
             putExtra(BridgeService.EXTRA_RECORD_SAT_ONLY,  checkRecordSatOnly.isChecked)
             putExtra(BridgeService.EXTRA_RECORD_HT,        checkRecordHt.isChecked)
@@ -363,4 +383,16 @@ class MainActivity : AppCompatActivity() {
                 PackageManager.PERMISSION_GRANTED
 
     private fun toast(msg: String) = Toast.makeText(this, msg, Toast.LENGTH_SHORT).show()
+
+    companion object {
+        // Standard CTCSS subtone values (Hz × 100); index 0 = none (0)
+        val CTCSS_SUBTONES = intArrayOf(
+            0,
+            6700, 7190, 7440, 7700, 7970, 8250, 8540, 8850,
+            9150, 9480, 9740, 10000, 10350, 10720, 11090, 11480,
+            11880, 12300, 12730, 13180, 13650, 14130, 14620, 15140,
+            15670, 16220, 16790, 17380, 17990, 18620, 19280,
+            20350, 21070, 21810, 22570, 23360, 24180, 25030
+        )
+    }
 }
