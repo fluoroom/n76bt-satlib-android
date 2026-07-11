@@ -4,8 +4,11 @@ import java.nio.charset.Charset
 
 object N76Protocol {
     private const val VENDOR = 0x0002
-    const val CMD_FREQ_MODE_SET_PAR = 0x0023
+    const val CMD_READ_BSS_SETTINGS  = 0x0021  // ordinal 33
+    const val CMD_WRITE_BSS_SETTINGS = 0x0022  // ordinal 34
+    const val CMD_FREQ_MODE_SET_PAR  = 0x0023
     const val CMD_SET_SATELLITE_INFO = 0x004D
+    const val CMD_DO_PROG_FUNC       = 0x0042  // ordinal 66 — generic action dispatcher
 
     /**
      * Wraps a payload in a GAIA framing header.
@@ -118,6 +121,10 @@ object N76Protocol {
 
     // mode=OFF (0) = all zero bits; tells the radio to exit satellite/freq-override mode
     fun exitSatModePacket() = buildPacket(CMD_FREQ_MODE_SET_PAR, ByteArray(14))
+
+    // PTT: action 13 = main_ptt assert, action 26 = release_ptt
+    fun pttAssert()  = buildPacket(CMD_DO_PROG_FUNC, byteArrayOf(0x00, 0x0D))
+    fun pttRelease() = buildPacket(CMD_DO_PROG_FUNC, byteArrayOf(0x00, 0x1A))
 }
 
 /**

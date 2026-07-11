@@ -8,30 +8,65 @@ import android.content.Context
 import android.content.Intent
 import android.content.IntentFilter
 import android.content.pm.PackageManager
+import android.media.AudioDeviceInfo
+import android.media.AudioManager
+import android.net.Uri
 import android.os.Build
 import android.os.Bundle
+import android.view.MotionEvent
+import android.view.View
 import android.widget.*
+import androidx.activity.result.contract.ActivityResultContracts
 import androidx.appcompat.app.AppCompatActivity
 import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
 
 class MainActivity : AppCompatActivity() {
 
-    private lateinit var spinnerDevices:  Spinner
-    private lateinit var editHost:        EditText
-    private lateinit var editPort:        EditText
-    private lateinit var spinnerInterval: Spinner
-    private lateinit var checkSatFw:      CheckBox
-    private lateinit var checkSatInfo:    CheckBox
-    private lateinit var checkForceRxNull: CheckBox
-    private lateinit var checkForceTxNull: CheckBox
-    private lateinit var btnToggle:       Button
-    private lateinit var tvLog:           TextView
+    private lateinit var spinnerDevices:    Spinner
+    private lateinit var editHost:          EditText
+    private lateinit var editPort:          EditText
+    private lateinit var spinnerInterval:   Spinner
+    private lateinit var checkSendSatInfo:  CheckBox
+    private lateinit var checkForceRxNull:  CheckBox
+    private lateinit var checkForceTxNull:  CheckBox
+    private lateinit var checkAudioSco:     CheckBox
+    private lateinit var btnMonitor:        Button
+    private lateinit var spinnerAudioInput: Spinner
+    private lateinit var checkRecordHt:     CheckBox
+    private lateinit var checkRecordInput:  CheckBox
+    private lateinit var checkRecordSatOnly: CheckBox
+    private lateinit var tvOutputFolder:    TextView
+    private lateinit var btnPickFolder:     Button
+    private lateinit var btnRecord:         Button
+    private lateinit var btnPtt:            Button
+    private lateinit var btnToggle:         Button
+    private lateinit var tvLog:             TextView
 
     private var pairedDevices: List<BluetoothDevice> = emptyList()
+    private var audioInputDevices: List<AudioDeviceInfo> = emptyList()
     private var serviceRunning = false
+    private var monitorOn = false
+    private var recording = false
+    private var outputFolderUri: Uri? = null
 
     private val pollStepsMs = (1..12).map { it * 250L }
+
+    private val prefs by lazy { getSharedPreferences("n76btlink", MODE_PRIVATE) }
+
+    private val folderPickerLauncher = registerForActivityResult(
+        ActivityResultContracts.OpenDocumentTree()
+    ) { uri: Uri? ->
+        if (uri != null) {
+            contentResolver.takePersistableUriPermission(
+                uri,
+                Intent.FLAG_GRANT_READ_URI_PERMISSION or Intent.FLAG_GRANT_WRITE_URI_PERMISSION
+            )
+            outputFolderUri = uri
+            tvOutputFolder.text = uri.lastPathSegment ?: uri.toString()
+            prefs.edit().putString("output_folder_uri", uri.toString()).apply()
+        }
+    }
 
     private val logReceiver = object : BroadcastReceiver() {
         override fun onReceive(context: Context, intent: Intent) {
@@ -44,16 +79,25 @@ class MainActivity : AppCompatActivity() {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_main)
 
-        spinnerDevices   = findViewById(R.id.spinnerDevices)
-        editHost         = findViewById(R.id.editHost)
-        editPort         = findViewById(R.id.editPort)
-        spinnerInterval  = findViewById(R.id.spinnerInterval)
-        checkSatFw       = findViewById(R.id.checkSatFw)
-        checkSatInfo     = findViewById(R.id.checkSatInfo)
-        checkForceRxNull = findViewById(R.id.checkForceRxNull)
-        checkForceTxNull = findViewById(R.id.checkForceTxNull)
-        btnToggle        = findViewById(R.id.btnToggle)
-        tvLog            = findViewById(R.id.tvLog)
+        spinnerDevices    = findViewById(R.id.spinnerDevices)
+        editHost          = findViewById(R.id.editHost)
+        editPort          = findViewById(R.id.editPort)
+        spinnerInterval   = findViewById(R.id.spinnerInterval)
+        checkSendSatInfo  = findViewById(R.id.checkSendSatInfo)
+        checkForceRxNull  = findViewById(R.id.checkForceRxNull)
+        checkForceTxNull  = findViewById(R.id.checkForceTxNull)
+        checkAudioSco     = findViewById(R.id.checkAudioSco)
+        btnMonitor        = findViewById(R.id.btnMonitor)
+        spinnerAudioInput = findViewById(R.id.spinnerAudioInput)
+        checkRecordHt     = findViewById(R.id.checkRecordHt)
+        checkRecordInput  = findViewById(R.id.checkRecordInput)
+        checkRecordSatOnly = findViewById(R.id.checkRecordSatOnly)
+        tvOutputFolder    = findViewById(R.id.tvOutputFolder)
+        btnPickFolder     = findViewById(R.id.btnPickFolder)
+        btnRecord         = findViewById(R.id.btnRecord)
+        btnPtt            = findViewById(R.id.btnPtt)
+        btnToggle         = findViewById(R.id.btnToggle)
+        tvLog             = findViewById(R.id.tvLog)
 
         spinnerInterval.adapter = ArrayAdapter(
             this,
@@ -62,12 +106,80 @@ class MainActivity : AppCompatActivity() {
         ).also { it.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item) }
         spinnerInterval.setSelection(3) // default 1000 ms
 
-        requestPermissions()
-        loadPairedDevices()
+        // Restore saved output folder
+        prefs.getString("output_folder_uri", null)?.let { uriStr ->
+            val uri = Uri.parse(uriStr)
+            outputFolderUri = uri
+            tvOutputFolder.text = uri.lastPathSegment ?: uriStr
+        }
+
+        // When Record HT is selected, automatically enable Receive RX audio (needed for HT audio)
+        checkRecordHt.setOnCheckedChangeListener { _, checked ->
+            if (checked) checkAudioSco.isChecked = true
+        }
+
+        checkRecordSatOnly.setOnCheckedChangeListener { _, checked ->
+            btnRecord.visibility = if (checked) View.GONE else View.VISIBLE
+        }
+
+        // Radio options: update monitor button visibility and restart bridge if running
+        val radioOptionListener = { _: android.widget.CompoundButton, _: Boolean ->
+            btnMonitor.visibility = if (checkAudioSco.isChecked) View.VISIBLE else View.GONE
+            if (!checkAudioSco.isChecked) resetMonitor()
+            if (serviceRunning) {
+                tvLog.append("Radio option changed — restarting bridge…\n")
+                stopBridge()
+                startBridge()
+            }
+            Unit
+        }
+        checkAudioSco.setOnCheckedChangeListener(radioOptionListener)
+        checkSendSatInfo.setOnCheckedChangeListener(radioOptionListener)
+        checkForceRxNull.setOnCheckedChangeListener(radioOptionListener)
+        checkForceTxNull.setOnCheckedChangeListener(radioOptionListener)
+
+        btnMonitor.setOnClickListener {
+            monitorOn = !monitorOn
+            btnMonitor.text = getString(
+                if (monitorOn) R.string.btn_monitor_on else R.string.btn_monitor_off
+            )
+            startService(Intent(this, BridgeService::class.java).apply {
+                action = BridgeService.ACTION_AUDIO_MONITOR
+                putExtra(BridgeService.EXTRA_MONITOR_ON, monitorOn)
+            })
+        }
+
+        btnPickFolder.setOnClickListener {
+            folderPickerLauncher.launch(outputFolderUri)
+        }
+
+        btnRecord.setOnClickListener { toggleRecording() }
+
+        btnPtt.setOnTouchListener { _, ev ->
+            when (ev.action) {
+                MotionEvent.ACTION_DOWN -> {
+                    if (!serviceRunning) { toast("Start bridge first"); false }
+                    else {
+                        startService(Intent(this, BridgeService::class.java)
+                            .setAction(BridgeService.ACTION_PTT_DOWN))
+                        true
+                    }
+                }
+                MotionEvent.ACTION_UP, MotionEvent.ACTION_CANCEL -> {
+                    startService(Intent(this, BridgeService::class.java)
+                        .setAction(BridgeService.ACTION_PTT_UP))
+                    true
+                }
+                else -> false
+            }
+        }
 
         btnToggle.setOnClickListener {
             if (serviceRunning) stopBridge() else startBridge()
         }
+
+        requestPermissions()
+        loadPairedDevices()
     }
 
     override fun onResume() {
@@ -76,12 +188,15 @@ class MainActivity : AppCompatActivity() {
             this, logReceiver, IntentFilter(BridgeService.ACTION_LOG),
             ContextCompat.RECEIVER_NOT_EXPORTED
         )
+        loadAudioInputDevices()
     }
 
     override fun onPause() {
         super.onPause()
         unregisterReceiver(logReceiver)
     }
+
+    // ── Bluetooth devices ─────────────────────────────────────────────────────
 
     private fun loadPairedDevices() {
         if (!hasBluetoothPermission()) return
@@ -104,24 +219,87 @@ class MainActivity : AppCompatActivity() {
         if (n76idx >= 0) spinnerDevices.setSelection(n76idx)
     }
 
+    // ── Audio input devices ───────────────────────────────────────────────────
+
+    private fun loadAudioInputDevices() {
+        val am = getSystemService(Context.AUDIO_SERVICE) as AudioManager
+        audioInputDevices = am.getDevices(AudioManager.GET_DEVICES_INPUTS).toList()
+        val names = mutableListOf(getString(R.string.audio_input_default))
+        names += audioInputDevices.map { inputDeviceLabel(it) }
+        spinnerAudioInput.adapter = ArrayAdapter(
+            this, android.R.layout.simple_spinner_item, names
+        ).also { it.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item) }
+    }
+
+    private fun inputDeviceLabel(d: AudioDeviceInfo): String {
+        val type = when (d.type) {
+            AudioDeviceInfo.TYPE_BUILTIN_MIC    -> getString(R.string.audio_type_phone_mic)
+            AudioDeviceInfo.TYPE_WIRED_HEADSET  -> getString(R.string.audio_type_wired)
+            AudioDeviceInfo.TYPE_USB_HEADSET    -> getString(R.string.audio_type_usb)
+            AudioDeviceInfo.TYPE_BLUETOOTH_SCO  -> getString(R.string.audio_type_bt_sco)
+            else -> "Input #${d.id}"
+        }
+        val name = d.productName?.toString()?.takeIf { it.isNotBlank() }
+        return if (name != null) "$name ($type)" else type
+    }
+
+    private fun selectedInputDeviceId(): Int {
+        val pos = spinnerAudioInput.selectedItemPosition
+        return if (pos <= 0) 0 else audioInputDevices.getOrNull(pos - 1)?.id ?: 0
+    }
+
+    // ── Recording ─────────────────────────────────────────────────────────────
+
+    private fun toggleRecording() {
+        if (!recording) {
+            if (!checkRecordHt.isChecked && !checkRecordInput.isChecked) {
+                toast("Select at least one recording source"); return
+            }
+            if (checkRecordInput.isChecked && !hasRecordPermission()) {
+                toast("Microphone permission required"); return
+            }
+            startService(Intent(this, BridgeService::class.java).apply {
+                action = BridgeService.ACTION_RECORD_START
+                putExtra(BridgeService.EXTRA_RECORD_HT,        checkRecordHt.isChecked)
+                putExtra(BridgeService.EXTRA_RECORD_INPUT,     checkRecordInput.isChecked)
+                putExtra(BridgeService.EXTRA_INPUT_DEVICE_ID,  selectedInputDeviceId())
+                outputFolderUri?.let { putExtra(BridgeService.EXTRA_OUTPUT_FOLDER, it.toString()) }
+            })
+            recording = true
+            btnRecord.text = getString(R.string.btn_record_stop)
+        } else {
+            startService(Intent(this, BridgeService::class.java)
+                .setAction(BridgeService.ACTION_RECORD_STOP))
+            recording = false
+            btnRecord.text = getString(R.string.btn_record_start)
+        }
+    }
+
+    // ── Bridge start / stop ───────────────────────────────────────────────────
+
     private fun startBridge() {
         val idx = spinnerDevices.selectedItemPosition
         if (idx < 0 || idx >= pairedDevices.size) { toast("Select a Bluetooth device"); return }
 
-        val host    = editHost.text.toString().trim().ifBlank { "127.0.0.1" }
-        val port    = editPort.text.toString().trim().toIntOrNull() ?: 4534
-        val pollMs  = pollStepsMs.getOrElse(spinnerInterval.selectedItemPosition) { 1000L }
+        val host   = editHost.text.toString().trim().ifBlank { "127.0.0.1" }
+        val port   = editPort.text.toString().trim().toIntOrNull() ?: 4534
+        val pollMs = pollStepsMs.getOrElse(spinnerInterval.selectedItemPosition) { 1000L }
 
         val svcIntent = Intent(this, BridgeService::class.java).apply {
             action = BridgeService.ACTION_START
-            putExtra(BridgeService.EXTRA_MAC,           pairedDevices[idx].address)
-            putExtra(BridgeService.EXTRA_HOST,          host)
-            putExtra(BridgeService.EXTRA_PORT,          port)
-            putExtra(BridgeService.EXTRA_POLL_MS,       pollMs)
-            putExtra(BridgeService.EXTRA_SAT_FW,        checkSatFw.isChecked)
-            putExtra(BridgeService.EXTRA_SEND_SAT_INFO, checkSatInfo.isChecked)
-            putExtra(BridgeService.EXTRA_FORCE_RX_NULL, checkForceRxNull.isChecked)
-            putExtra(BridgeService.EXTRA_FORCE_TX_NULL, checkForceTxNull.isChecked)
+            putExtra(BridgeService.EXTRA_MAC,              pairedDevices[idx].address)
+            putExtra(BridgeService.EXTRA_HOST,             host)
+            putExtra(BridgeService.EXTRA_PORT,             port)
+            putExtra(BridgeService.EXTRA_POLL_MS,          pollMs)
+            putExtra(BridgeService.EXTRA_SEND_SAT_INFO,    checkSendSatInfo.isChecked)
+            putExtra(BridgeService.EXTRA_FORCE_RX_NULL,    checkForceRxNull.isChecked)
+            putExtra(BridgeService.EXTRA_FORCE_TX_NULL,    checkForceTxNull.isChecked)
+            putExtra(BridgeService.EXTRA_AUDIO_SCO,        checkAudioSco.isChecked)
+            putExtra(BridgeService.EXTRA_RECORD_SAT_ONLY,  checkRecordSatOnly.isChecked)
+            putExtra(BridgeService.EXTRA_RECORD_HT,        checkRecordHt.isChecked)
+            putExtra(BridgeService.EXTRA_RECORD_INPUT,     checkRecordInput.isChecked)
+            putExtra(BridgeService.EXTRA_INPUT_DEVICE_ID,  selectedInputDeviceId())
+            outputFolderUri?.let { putExtra(BridgeService.EXTRA_OUTPUT_FOLDER, it.toString()) }
         }
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) startForegroundService(svcIntent)
         else startService(svcIntent)
@@ -134,9 +312,19 @@ class MainActivity : AppCompatActivity() {
     private fun stopBridge() {
         startService(Intent(this, BridgeService::class.java).setAction(BridgeService.ACTION_STOP))
         serviceRunning = false
+        recording = false
         btnToggle.text = getString(R.string.btn_start)
+        btnRecord.text = getString(R.string.btn_record_start)
+        resetMonitor()
         tvLog.append("Bridge stopped.\n")
     }
+
+    private fun resetMonitor() {
+        monitorOn = false
+        btnMonitor.text = getString(R.string.btn_monitor_off)
+    }
+
+    // ── Permissions ───────────────────────────────────────────────────────────
 
     private fun requestPermissions() {
         val perms = mutableListOf<String>()
@@ -147,6 +335,7 @@ class MainActivity : AppCompatActivity() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
             perms += Manifest.permission.POST_NOTIFICATIONS
         }
+        perms += Manifest.permission.RECORD_AUDIO
         val needed = perms.filter {
             ActivityCompat.checkSelfPermission(this, it) != PackageManager.PERMISSION_GRANTED
         }
@@ -157,7 +346,10 @@ class MainActivity : AppCompatActivity() {
         requestCode: Int, permissions: Array<String>, grantResults: IntArray
     ) {
         super.onRequestPermissionsResult(requestCode, permissions, grantResults)
-        if (requestCode == 1) loadPairedDevices()
+        if (requestCode == 1) {
+            loadPairedDevices()
+            loadAudioInputDevices()
+        }
     }
 
     private fun hasBluetoothPermission(): Boolean =
@@ -165,6 +357,10 @@ class MainActivity : AppCompatActivity() {
             ActivityCompat.checkSelfPermission(this, Manifest.permission.BLUETOOTH_CONNECT) ==
                     PackageManager.PERMISSION_GRANTED
         else true
+
+    private fun hasRecordPermission(): Boolean =
+        ActivityCompat.checkSelfPermission(this, Manifest.permission.RECORD_AUDIO) ==
+                PackageManager.PERMISSION_GRANTED
 
     private fun toast(msg: String) = Toast.makeText(this, msg, Toast.LENGTH_SHORT).show()
 }

@@ -27,6 +27,8 @@ class N76Bluetooth {
     private var connecting = AtomicBoolean(false)
 
     var onLog: ((String) -> Unit)? = null
+    var onConnected: (() -> Unit)? = null
+    var onPacket: ((ByteArray) -> Unit)? = null
     val isConnected get() = _connected.get()
 
     fun connect(mac: String) {
@@ -84,6 +86,40 @@ class N76Bluetooth {
         outputStream = sock.outputStream
         _connected.set(true)
         onLog?.invoke("BT connected ($via) to ${name ?: "unknown"}")
+        startReader(sock)
+        onConnected?.invoke()
+    }
+
+    private fun startReader(sock: BluetoothSocket) {
+        thread(name = "n76bt-reader", isDaemon = true) {
+            val stream = try { sock.inputStream } catch (_: Exception) {
+                disconnectInternal(); return@thread
+            }
+            val chunk = ByteArray(512)
+            var buf = ByteArray(0)
+            try {
+                while (true) {
+                    val n = stream.read(chunk)
+                    if (n <= 0) break
+                    buf += chunk.copyOf(n)
+                    var i = 0
+                    while (i < buf.size) {
+                        if (buf[i] != 0xFF.toByte()) { i++; continue }
+                        if (buf.size - i < 8) break
+                        val plen  = buf[i + 3].toInt() and 0xFF
+                        val flags = buf[i + 2].toInt() and 0xFF
+                        val total = 8 + plen + (flags and 1)
+                        if (buf.size - i < total) break
+                        try { onPacket?.invoke(buf.copyOfRange(i, i + total)) }
+                        catch (_: Exception) {}
+                        i += total
+                    }
+                    buf = if (i < buf.size) buf.copyOfRange(i, buf.size) else ByteArray(0)
+                }
+            } catch (_: Exception) {}
+            onLog?.invoke("BT reader ended")
+            disconnectInternal()
+        }
     }
 
     private fun disconnectInternal() {
